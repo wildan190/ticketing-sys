@@ -6,7 +6,29 @@ import axios from 'axios'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const orders = ref([])
+interface User {
+  name: string
+  email: string
+}
+
+interface OrderItem {
+  id: string
+  name: string
+  price: number
+  quantity: number
+}
+
+interface Order {
+  _id: string
+  order_id: string
+  visit_date: string
+  user: User
+  total_price: number
+  items: OrderItem[]
+  payment_status: 'paid' | 'pending' | 'cancelled' | 'expired' | string
+}
+
+const orders = ref<Order[]>([])
 const loading = ref(true)
 
 const getAuthHeaders = () => {

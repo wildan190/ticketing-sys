@@ -4,7 +4,20 @@ import VisitorLayout from '@/components/layout/VisitorLayout.vue'
 import ResponsiveImage from '@/components/ui/images/ResponsiveImage.vue'
 import axios from 'axios'
 
-const animals = ref([])
+interface FeedingTime {
+  time: string
+}
+
+interface Animal {
+  _id: string
+  name: string
+  species: string
+  description: string
+  image_url: string
+  feeding_times: FeedingTime[]
+}
+
+const animals = ref<Animal[]>([])
 const loading = ref(false)
 
 const fetchAnimals = async () => {
