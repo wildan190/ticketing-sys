@@ -222,7 +222,7 @@ onMounted(() => {
                     <p class="text-gray-500">{{ selectedTickets[cat._id] }} Tiket</p>
                   </div>
                   <span class="font-bold text-sm text-black dark:text-white">
-                    Rp {{ (effectivePrice(cat) * (selectedTickets.value[cat._id] || 0)).toLocaleString('id-ID') }}
+                    Rp {{ (effectivePrice(cat) * (selectedTickets[cat._id] || 0)).toLocaleString('id-ID') }}
                   </span>
                 </div>
 
