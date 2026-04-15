@@ -7,8 +7,16 @@ import axios from 'axios'
 import flatpickr from 'flatpickr'
 import 'flatpickr/dist/flatpickr.css'
 
+interface TicketCategory {
+  _id: string
+  name: string
+  description?: string
+  price: number
+  weekend_price?: number
+}
+
 const router = useRouter()
-const categories = ref<any[]>([])
+const categories = ref<TicketCategory[]>([])
 const visitDate = ref('')
 const selectedTickets = ref<Record<string, number>>({})
 const loading = ref(false)
@@ -16,27 +24,33 @@ const loading = ref(false)
 const fetchCategories = async () => {
   try {
     const { data } = await axios.get('/api/tickets')
-    categories.value = data
     
-    // Check for pending booking from local storage
-    const pending = localStorage.getItem('pendingBooking')
-    if (pending) {
-      const { tickets, date } = JSON.parse(pending)
-      visitDate.value = date
-      selectedTickets.value = tickets
-      localStorage.removeItem('pendingBooking')
+    if (Array.isArray(data)) {
+      categories.value = data
       
-      // If user is now logged in, auto-trigger checkout
-      const userInfo = localStorage.getItem('userInfo')
-      if (userInfo) {
-        // Use nextTick to ensure computed properties (totalPrice) are updated
-        await nextTick()
-        checkout()
+      // Check for pending booking from local storage
+      const pending = localStorage.getItem('pendingBooking')
+      if (pending) {
+        const { tickets, date } = JSON.parse(pending)
+        visitDate.value = date
+        selectedTickets.value = tickets
+        localStorage.removeItem('pendingBooking')
+        
+        // If user is now logged in, auto-trigger checkout
+        const userInfo = localStorage.getItem('userInfo')
+        if (userInfo) {
+          // Use nextTick to ensure computed properties (totalPrice) are updated
+          await nextTick()
+          checkout()
+        }
+      } else {
+        data.forEach((cat: TicketCategory) => {
+          selectedTickets.value[cat._id] = 0
+        })
       }
     } else {
-      data.forEach((cat: any) => {
-        selectedTickets.value[cat._id] = 0
-      })
+      console.error('Expected array of tickets but got:', data)
+      categories.value = []
     }
   } catch (error) {
     console.error('Failed to fetch categories', error)
@@ -57,6 +71,7 @@ const effectivePrice = (cat: any) => {
 }
 
 const totalPrice = computed(() => {
+  if (!Array.isArray(categories.value)) return 0
   return categories.value.reduce((acc, cat) => {
     return acc + (effectivePrice(cat) * (selectedTickets.value[cat._id] || 0))
   }, 0)
@@ -141,10 +156,10 @@ onMounted(() => {
                   <p class="text-sm text-gray-500 mt-1">{{ cat.description || 'Akses penuh ke seluruh area kebun binatang.' }}</p>
                   <div class="flex items-center gap-2 mt-2">
                     <p class="font-bold" :class="isWeekend && cat.weekend_price ? 'line-through text-gray-400 text-sm' : 'text-brand-500'">
-                      Rp {{ cat.price.toLocaleString('id-ID') }}
+                      Rp {{ (cat.price || 0).toLocaleString('id-ID') }}
                     </p>
                     <p v-if="isWeekend && cat.weekend_price" class="font-bold text-orange-600 dark:text-orange-400">
-                      Rp {{ cat.weekend_price.toLocaleString('id-ID') }}
+                      Rp {{ (cat.weekend_price || 0).toLocaleString('id-ID') }}
                       <span class="text-xs font-normal ml-1">(Weekend)</span>
                     </p>
                   </div>
@@ -207,7 +222,7 @@ onMounted(() => {
                     <p class="text-gray-500">{{ selectedTickets[cat._id] }} Tiket</p>
                   </div>
                   <span class="font-bold text-sm text-black dark:text-white">
-                    Rp {{ (effectivePrice(cat) * (selectedTickets[cat._id] || 0)).toLocaleString('id-ID') }}
+                    Rp {{ (effectivePrice(cat) * (selectedTickets.value[cat._id] || 0)).toLocaleString('id-ID') }}
                   </span>
                 </div>
 
@@ -224,7 +239,7 @@ onMounted(() => {
               <div class="pt-4 border-t border-stroke dark:border-strokedark">
                 <div class="flex justify-between items-center mb-6">
                   <span class="text-lg font-medium text-black dark:text-white">Total Harga</span>
-                  <span class="text-2xl font-bold text-brand-500">Rp {{ totalPrice.toLocaleString('id-ID') }}</span>
+                  <span class="text-2xl font-bold text-brand-500">Rp {{ (totalPrice || 0).toLocaleString('id-ID') }}</span>
                 </div>
 
                 <Button
