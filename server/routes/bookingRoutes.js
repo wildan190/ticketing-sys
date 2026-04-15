@@ -5,6 +5,7 @@ import {
   getBookingById, 
   scanTicket,
   getMyOrders,
+  getGuestOrders,
   getAllOrders,
   verifyPayment,
   getTicketsByBookingId,
@@ -14,11 +15,13 @@ import { protect, admin, staff } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+router.post('/guest-orders', getGuestOrders);
+
 router.post('/', createBooking);
 router.post('/notification', handleNotification);
 router.post('/scan', protect, staff, scanTicket);
 router.get('/myorders', protect, getMyOrders);
-router.get('/verify/:order_id', protect, verifyPayment);
+router.get('/verify/:order_id', verifyPayment);
 router.get('/:id/tickets', getTicketsByBookingId);
 router.get('/scan-logs', protect, staff, getScanLogs);
 router.get('/', protect, admin, getAllOrders);

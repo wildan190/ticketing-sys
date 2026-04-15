@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import VisitorLayout from '@/components/layout/VisitorLayout.vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
@@ -32,7 +32,11 @@ interface Booking {
 
 const router = useRouter()
 const orders = ref<Booking[]>([])
-const loading = ref(true)
+const loading = ref(false)
+
+const isLoggedIn = computed(() => typeof window !== 'undefined' && !!localStorage.getItem('userInfo'))
+const guestName = ref('')
+const guestEmail = ref('')
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
@@ -52,8 +56,41 @@ const fetchMyOrders = async () => {
   }
 }
 
+const fetchGuestOrders = async () => {
+  guestName.value = guestName.value.trim()
+  guestEmail.value = guestEmail.value.trim()
+
+  if (!guestName.value || !guestEmail.value) {
+    alert('Masukkan Nama dan Email Anda untuk mencari tiket.')
+    return
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(guestEmail.value)) {
+    alert('Format email tidak valid. Pastikan penulisan email sudah benar.')
+    return
+  }
+
+  loading.value = true
+  try {
+    const { data } = await axios.post('/api/bookings/guest-orders', {
+      guest_name: guestName.value,
+      guest_email: guestEmail.value
+    })
+    orders.value = data
+  } catch (error) {
+    console.error('Failed to fetch guest orders', error)
+    alert('Gagal mencari tiket guest. Pastikan data yang dimasukkan benar.')
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(() => {
-  fetchMyOrders()
+  if (isLoggedIn.value) {
+    loading.value = true
+    fetchMyOrders()
+  }
 })
 </script>
 
@@ -67,10 +104,41 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- Guest Lookup Form -->
+      <div v-if="!isLoggedIn" class="mb-8 bg-blue-50 dark:bg-meta-4 rounded-xl p-6 border border-blue-100 dark:border-strokedark shadow-sm">
+        <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Cek Tiket (Guest)</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Masukkan Nama Lengkap dan Email yang Anda gunakan saat membeli tiket untuk melihat daftar pembelian Anda.</p>
+        <div class="flex flex-col sm:flex-row gap-4">
+          <input
+            v-model="guestName"
+            type="text"
+            placeholder="Nama Lengkap"
+            class="flex-1 rounded-lg border-[1.5px] border-stroke bg-white dark:bg-form-input py-2.5 px-4 outline-none transition focus:border-brand-500 dark:border-form-strokedark"
+            @keyup.enter="fetchGuestOrders"
+          />
+          <input
+            v-model="guestEmail"
+            type="email"
+            placeholder="Alamat Email"
+            class="flex-1 rounded-lg border-[1.5px] border-stroke bg-white dark:bg-form-input py-2.5 px-4 outline-none transition focus:border-brand-500 dark:border-form-strokedark"
+            @keyup.enter="fetchGuestOrders"
+          />
+          <button
+            @click="fetchGuestOrders"
+            :disabled="loading || !guestName || !guestEmail"
+            class="rounded-lg bg-brand-500 py-2.5 px-6 font-bold text-white hover:bg-opacity-90 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {{ loading ? 'Mencari...' : 'Cari Tiket' }}
+          </button>
+        </div>
+      </div>
+
       <div class="bg-white dark:bg-boxdark rounded-xl shadow-sm border border-stroke dark:border-strokedark overflow-hidden">
         <ul role="list" class="divide-y divide-stroke dark:divide-strokedark">
           <li v-if="loading" class="p-8 text-center text-gray-500">Memuat data pesanan...</li>
-          <li v-else-if="orders.length === 0" class="p-8 text-center text-gray-500">Anda belum memiliki riwayat pembelian tiket.</li>
+          <li v-else-if="orders.length === 0" class="p-8 text-center text-gray-500">
+            {{ isLoggedIn ? 'Anda belum memiliki riwayat pembelian tiket.' : 'Silakan gunakan form di atas untuk mencari tiket Anda, atau belum ada tiket yang sesuai dengan pencarian.' }}
+          </li>
           
           <li v-for="order in orders" :key="order._id" class="p-6">
             <div class="flex items-center justify-between flex-wrap gap-4">

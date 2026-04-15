@@ -11,11 +11,6 @@ const verifying = ref(true)
 const booking = ref<any>(null)
 const verifyError = ref('')
 
-const getAuthHeaders = () => {
-  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-  return userInfo.token ? { Authorization: `Bearer ${userInfo.token}` } : {}
-}
-
 onMounted(async () => {
   // Midtrans passes order_id as a query param on redirect
   const order_id = route.query.order_id as string
@@ -26,9 +21,7 @@ onMounted(async () => {
   }
 
   try {
-    const { data } = await axios.get(`/api/bookings/verify/${order_id}`, {
-      headers: getAuthHeaders()
-    })
+    const { data } = await axios.get(`/api/bookings/verify/${order_id}`)
     booking.value = data
   } catch (err: any) {
     verifyError.value = err.response?.data?.message || 'Gagal memverifikasi pembayaran'

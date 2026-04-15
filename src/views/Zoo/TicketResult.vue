@@ -10,9 +10,11 @@ const tickets = ref<any[]>([])
 const loading = ref(true)
 const verifying = ref(false)
 
-const getAuthHeaders = () => {
-  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-  return userInfo.token ? { Authorization: `Bearer ${userInfo.token}` } : {}
+const downloadQR = (qrDataUrl: string, ticketId: string) => {
+  const link = document.createElement('a')
+  link.href = qrDataUrl
+  link.download = `tiket-${ticketId}.png`
+  link.click()
 }
 
 const fetchBookingAndTickets = async () => {
@@ -30,9 +32,7 @@ const fetchBookingAndTickets = async () => {
     if (data.payment_status === 'pending' || (data.payment_status === 'paid' && tickets.value.length === 0)) {
       verifying.value = true
       try {
-        const { data: verified } = await axios.get(`/api/bookings/verify/${data.order_id}`, {
-          headers: getAuthHeaders()
-        })
+        const { data: verified } = await axios.get(`/api/bookings/verify/${data.order_id}`)
         booking.value = verified
         if (verified.payment_status === 'paid') {
           const { data: ticketData } = await axios.get(`/api/bookings/${verified._id}/tickets`)
@@ -114,6 +114,14 @@ onMounted(fetchBookingAndTickets)
                    <div class="text-center">
                       <h3 class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-1">{{ ticket.category?.name || 'Tiket Masuk' }}</h3>
                       <p class="text-[10px] font-mono font-bold text-gray-400 dark:text-gray-500 tracking-[0.2em]">{{ ticket.ticket_id }}</p>
+                      <button
+                        v-if="ticket.status !== 'used'"
+                        @click="downloadQR(ticket.qr_code, ticket.ticket_id)"
+                        class="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500/10 hover:bg-brand-500/20 text-brand-500 font-bold text-xs px-4 py-2 transition-all active:scale-95"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Unduh QR
+                      </button>
                    </div>
                 </div>
 

@@ -11,10 +11,20 @@ import { v4 as uuidv4 } from 'uuid';
 // @access  Private/Customer
 export const createBooking = async (req, res) => {
   try {
-    const { items, addons, visit_date, user_id } = req.body;
+    const { items, addons, visit_date, user_id, guest_name, guest_email } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'No ticket items' });
+    }
+
+    if (!user_id) {
+      if (!guest_name || !guest_email) {
+        return res.status(400).json({ message: 'Nama dan Email diperlukan untuk Guest checkout.' });
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(guest_email.trim())) {
+        return res.status(400).json({ message: 'Format Email tidak valid.' });
+      }
     }
 
     // Check daily quota
@@ -80,13 +90,23 @@ export const createBooking = async (req, res) => {
         error: `${process.env.APP_URL || 'http://localhost:5173'}/user/error`,
         pending: `${process.env.APP_URL || 'http://localhost:5173'}/user/orders`,
       },
-      // You can add customer details here if user info is available
     };
+
+    if (guest_name || guest_email) {
+      transactionDetails.customer_details = {
+        first_name: guest_name || 'Guest',
+        email: guest_email || 'guest@example.com'
+      };
+    } else if (user_id) {
+      // In a more complete implementation, you would fetch user details from DB
+      transactionDetails.customer_details = {
+        first_name: 'Member',
+      };
+    }
 
     const midtransResponse = await snap.createTransaction(transactionDetails);
 
-    const booking = await Booking.create({
-      user: user_id, // For now, passing from body, should be from auth
+    const bookingPayload = {
       items: bookingItems,
       addons: addons || [],
       total_price,
@@ -96,7 +116,16 @@ export const createBooking = async (req, res) => {
         snap_token: midtransResponse.token,
         redirect_url: midtransResponse.redirect_url,
       }
-    });
+    };
+
+    if (user_id) {
+      bookingPayload.user = user_id;
+    } else {
+      bookingPayload.guest_name = guest_name;
+      bookingPayload.guest_email = guest_email;
+    }
+
+    const booking = await Booking.create(bookingPayload);
 
     res.status(201).json(booking);
   } catch (error) {
@@ -289,6 +318,48 @@ export const getMyOrders = async (req, res) => {
 
     res.json(bookingsWithSummary);
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get guest orders
+// @route   POST /api/bookings/guest-orders
+// @access  Public
+export const getGuestOrders = async (req, res) => {
+  try {
+    const { guest_name, guest_email } = req.body;
+    
+    if (!guest_name || !guest_email) {
+      return res.status(400).json({ message: 'Name and email are required to fetch guest orders' });
+    }
+
+    const bookings = await Booking.find({
+      guest_name: { $regex: new RegExp(`^${guest_name}$`, 'i') },
+      guest_email: { $regex: new RegExp(`^${guest_email}$`, 'i') }
+    })
+      .populate('items.category')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Attach ticket summary to each booking
+    const bookingsWithSummary = await Promise.all(
+      bookings.map(async (b) => {
+        const totalTickets = await Ticket.countDocuments({ booking: b._id });
+        const usedTickets = await Ticket.countDocuments({ booking: b._id, status: 'used' });
+        return {
+          ...b,
+          ticketSummary: {
+            total: totalTickets,
+            used: usedTickets,
+            allUsed: totalTickets > 0 && totalTickets === usedTickets
+          }
+        };
+      })
+    );
+
+    res.json(bookingsWithSummary);
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 };

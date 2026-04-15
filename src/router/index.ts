@@ -49,7 +49,7 @@ const router = createRouter({
       path: '/zoo/ticket/:id',
       name: 'ZooTicket',
       component: () => import('../views/Zoo/TicketResult.vue'),
-      meta: { title: 'E-Ticket', requiresAuth: true },
+      meta: { title: 'E-Ticket' },
     },
     {
       path: '/zoo/animals',
@@ -67,19 +67,19 @@ const router = createRouter({
       path: '/user/orders',
       name: 'UserPurchaseHistory',
       component: () => import('../views/User/PurchaseHistory.vue'),
-      meta: { title: 'Riwayat Pembelian', requiresAuth: true },
+      meta: { title: 'Riwayat Pembelian' },
     },
     {
       path: '/user/thank-you',
       name: 'PaymentSuccess',
       component: () => import('../views/User/ThankYou.vue'),
-      meta: { title: 'Pembayaran Berhasil', requiresAuth: true },
+      meta: { title: 'Pembayaran Berhasil' },
     },
     {
       path: '/user/error',
       name: 'PaymentError',
       component: () => import('../views/User/PaymentError.vue'),
-      meta: { title: 'Pembayaran Gagal', requiresAuth: true },
+      meta: { title: 'Pembayaran Gagal' },
     },
 
     // ── Admin ───────────────────────────────────────────────

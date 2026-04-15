@@ -5,7 +5,13 @@ const bookingSchema = mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
+    },
+    guest_name: {
+      type: String,
+    },
+    guest_email: {
+      type: String,
     },
     items: [
       {
